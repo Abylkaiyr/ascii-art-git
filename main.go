@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,15 +11,11 @@ import (
 )
 
 func main() {
-	arg := os.Args[1:]
-	if len(arg) != 1 {
-		fmt.Println("Please enter only 1 argument")
-		return
-	}
+	arg := os.Args[1]
 
-	str := strings.ReplaceAll(arg[0], "\\n", "\n")
+	str := strings.ReplaceAll(arg, "\\n", "\n")
 
-	content, err := ioutil.ReadFile("standard.txt")
+	content, err := ioutil.ReadFile("banner/standard.txt")
 	if err != nil {
 		fmt.Println("Cannot Read standard.txt file")
 	}
@@ -42,16 +39,18 @@ func main() {
 		}
 	}
 
+	col, let := setFlag()
+	colR := setColor(col)
+	isWordinText, letT, indexL := setLetter(str, let)
+	w1 := str[indexL:(len(letT) + indexL)]
+	w2 := str[:indexL]
+	w3 := str[(len(letT) + indexL):]
+
 	isThereNewLine, _ := checkNewline(str)
 	words1 := strings.Split(str, "\n")
 	if isThereNewLine {
 		if onlyNewlines(str) {
-			words := []string{}
-
-			for i := 1; i < len(words1); i++ {
-				words = append(words, words1[i])
-			}
-			for i := 0; i < len(words); i++ {
+			for i := 0; i < len(words1[1:]); i++ {
 				fmt.Println()
 			}
 		} else {
@@ -60,27 +59,52 @@ func main() {
 					fmt.Println()
 					continue
 				} else {
-					printWord(string(content), words1[i])
+					printWord(string(content), w1, w2, w3, colR, isWordinText)
 				}
 			}
 		}
 	} else {
-		printWord(string(content), str)
+		printWord(string(content), w1, w2, w3, colR, isWordinText)
 	}
 }
 
-func printWord(content string, str string) {
+func printWord(content string, w1 string, w2 string, w3 string, col string, isWordinText bool) {
 	strArr := [8]string{}
 	fontTxt := strings.Split(string(content), "\n")
-	for _, l := range str {
-		pos := int(l)*9 - 287
-		if l == 10 {
-			continue
+	if isWordinText {
+		for _, l := range w2 {
+			pos := int(l)*9 - 287
+			if l == 10 {
+				continue
+			}
+			for i := 0; i < 8; i++ {
+				strArr[i] += "\u001b[37m" + fontTxt[i+pos]
+			}
 		}
-		for i := 0; i < 8; i++ {
-			strArr[i] += fontTxt[i+pos]
+		for _, l := range w1 {
+			pos := int(l)*9 - 287
+			if l == 10 {
+				continue
+			}
+			for i := 0; i < 8; i++ {
+				strArr[i] += col + fontTxt[i+pos]
+			}
 		}
+		for _, l := range w3 {
+			pos := int(l)*9 - 287
+			if l == 10 {
+				continue
+			}
+			for i := 0; i < 8; i++ {
+				strArr[i] += "\u001b[37m" + fontTxt[i+pos]
+			}
+		}
+
+	} else {
+		fmt.Println("ERR: Letters do not consist in the given text, Please enter in the correct form")
+		return
 	}
+
 	for i := range strArr {
 		fmt.Println(strArr[i])
 	}
@@ -100,7 +124,7 @@ func checkNewline(str string) (bool, int) {
 
 func checkStdFile(content string) bool {
 	hasher := sha256.New()
-	s, err := ioutil.ReadFile("standard.txt")
+	s, err := ioutil.ReadFile("banner/standard.txt")
 	hasher.Write(s)
 	if err != nil {
 		log.Fatal(err)
@@ -120,4 +144,63 @@ func onlyNewlines(s string) bool {
 		}
 	}
 	return true
+}
+
+func setFlag() (string, string) {
+	myWord := os.Args[2]
+	fooCmd := flag.NewFlagSet(myWord, flag.ExitOnError)
+	color := fooCmd.String("color", "", "a string")
+	letter := fooCmd.String("letter", "", "write letter")
+
+	switch os.Args[2] {
+	case myWord:
+		fooCmd.Parse(os.Args[2:])
+	}
+	return *color, *letter
+}
+
+func setColor(s string) string {
+	switch s {
+	case "black":
+		return "\u001b[30m"
+	case "red":
+		return "\u001b[31m"
+	case "green":
+		return "\u001b[32m"
+	case "yellow":
+		return "\u001b[33m"
+	case "blue":
+		return "\u001b[34m"
+	case "magenta":
+		return "\u001b[35m"
+	case "teal":
+		return "\u001b[36m"
+	case "white":
+		return "\u001b[37m"
+	}
+	return ""
+}
+
+func setLetter(mWord string, mletter string) (bool, string, int) {
+	foundString := ""
+	index := 0
+	flag := false
+	indexL := 0
+
+	for i := 0; i < len(mletter); i++ {
+		for j := index; j < len(mWord); j++ {
+			if mletter[i] == mWord[j] {
+				foundString += string(mletter[i])
+				index = j
+				break
+			}
+		}
+	}
+	if len(foundString) == len(mletter) {
+		flag = true
+	}
+
+	indexL = strings.Index(mWord, foundString)
+
+	return flag, foundString, indexL
 }
